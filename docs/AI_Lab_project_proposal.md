@@ -163,11 +163,11 @@ Deliberately excluded. Naming what you will not build is as important as naming 
 
 | # | Milestone — what will be demonstrably working | Target date | Owner |
 |---|---|---|---|
-| 1 | YOLOv8n model loaded, inferring on sample video feeds with bounding boxes, and validating baseline detection accuracy on static test set. | Week 10 (Nov 16, 2026) | All members |
-| 2 | BoT-SORT tracker integrated with hit-counter confirmation; counts verified against manual ground truth on test video. | Week 11 (Nov 23, 2026) | Muhammad Hassan |
-| 3 | FastAPI backend complete — all REST endpoints, WebSocket streaming, and SQLite persistence working end-to-end. | Week 11 (Nov 23, 2026) | Muhammad Ali |
-| 4 | React frontend complete — video upload page, live frame viewer, dashboard, history, and camera management pages. | Week 12 (Nov 30, 2026) | Asad Chotani |
-| 5 | Bayesian HMM layer implemented; full experiment suite run on all 3 configurations; report and repo finalised. | Week 14 (Dec 7, 2026) | Muhammad Hassan |
+| 1 | YOLOv8n model loaded, inferring on sample video feeds with bounding boxes, and validating baseline detection accuracy on static test set. | Nov 5, 2026 | All members |
+| 2 | BoT-SORT tracker integrated with hit-counter confirmation; counts verified against manual ground truth on test video. | Nov 10, 2026 | Muhammad Hassan |
+| 3 | FastAPI backend complete — all REST endpoints, WebSocket streaming, and SQLite persistence working end-to-end. | Nov 13, 2026 | Muhammad Ali |
+| 4 | React frontend complete — video upload page, live frame viewer, dashboard, history, and camera management pages. | Nov 16, 2026 | Asad Chotani |
+| 5 | Bayesian HMM layer implemented; full experiment suite run on all 3 configurations; report and repo finalised. | Nov 19, 2026 | Muhammad Hassan |
 
 ---
 
