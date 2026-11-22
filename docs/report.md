@@ -86,9 +86,13 @@ The test video was filmed in a warehouse loading area. Objects move in and out o
 
 ## 5. System Architecture and OOP Design
 
-The project is structured in three layers following an OOP design with three core classes, satisfying the Labs 01–02 requirement.
+The project is structured in three layers following an OOP design with four classes (three concrete + one abstract base), satisfying the Labs 01–02 requirement for encapsulation, inheritance, and overridden methods.
 
 ### 5.1 Class Design
+
+#### `BaseCounter` — `src/base_counter.py`
+
+Abstract base class (ABC) defining the interface every counting strategy must implement. Declares `update()`, `reset()`, and the `counts` property as abstract methods, plus a concrete `total()` method and a default `__repr__`. `BayesianObjectCounter` inherits from this class and overrides all abstract methods.
 
 #### `DetectionEnvironment` — `src/environment.py`
 
@@ -105,7 +109,7 @@ for frame, idx, done in env:
 
 #### `BayesianObjectCounter` — `src/bayesian_counter.py`
 
-Implements the second AI technique — a two-state Hidden Markov Model with Poisson emission. Maintains a per-class belief `P(IN_SCENE)` updated each frame using Bayes' rule.
+**Inherits from `BaseCounter`.** Implements the second AI technique — a two-state Hidden Markov Model with Poisson emission. Maintains a per-class belief `P(IN_SCENE)` updated each frame using Bayes' rule. Overrides `update()`, `reset()`, the `counts` property, and `__repr__()`.
 
 **Key methods:**
 - `_predict_step(prior)` — Chapman–Kolmogorov prediction
@@ -128,10 +132,12 @@ Model-based reflex agent that owns both the YOLO model and a `BayesianObjectCoun
 ### 5.3 File Layout
 
 ```
-src/                        ← Logics (Member 1)
+src/                        ← AI core (Member 1)
+├── base_counter.py         ← BaseCounter ABC (abstract base class)
 ├── environment.py
 ├── bayesian_counter.py
 ├── agent.py
+├── __init__.py
 └── main.py
 backend/                    ← FastAPI server (Member 2)
 ├── main.py

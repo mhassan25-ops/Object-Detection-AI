@@ -38,8 +38,10 @@ import math
 import random
 from typing import Dict, List
 
+from base_counter import BaseCounter
 
-class BayesianObjectCounter:
+
+class BayesianObjectCounter(BaseCounter):
     """
     Per-class Bayesian object counter using a two-state HMM belief update.
 

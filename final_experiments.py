@@ -49,10 +49,13 @@ BAYES={
             "confirm":0.75,"exit":0.25},
 }
 
-def _pmf(k,lam):
-    if lam<=0: return 1.0 if k==0 else 1e-12
-    try: return max(math.exp(k*math.log(lam)-lam-math.lgamma(k+1)),1e-12)
-    except: return 1e-12
+def _pmf(k, lam):
+    if lam <= 0:
+        return 1.0 if k == 0 else 1e-12
+    try:
+        return max(math.exp(k * math.log(lam) - lam - math.lgamma(k + 1)), 1e-12)
+    except (ValueError, OverflowError):
+        return 1e-12
 
 def run_bayes(raw_dets_per_frame, class_names):
     """
@@ -106,7 +109,8 @@ for cfg in CONFIGS:
         try:
             res=model.track(frame,persist=True,conf=cfg["conf"],
                             tracker="botsort.yaml",device="cpu",verbose=False)
-        except: continue
+        except Exception:
+            continue
         fd=defaultdict(int)
         if res and res[0].boxes is not None:
             total_dets+=len(res[0].boxes)
