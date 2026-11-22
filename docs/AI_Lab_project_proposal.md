@@ -20,7 +20,7 @@
 | Field | Detail |
 |---|---|
 | **Project Title** | Automated Multi-Camera Object Detection, Tracking, and Inventory Counting System for Industrial RTSP Streams |
-| **Project Idea** | Idea No. ______ from the Project Ideas list ☐ Own idea (needs approval) ☑ |
+| **Project Idea** | Idea No. — from the Project Ideas list ☐ Own idea (needs approval) ☑ |
 | **Category** | Part A — Game ☐ Part B — Applied / Data ☑ |
 | **GitHub Repository URL** | https://github.com/mhassan25-ops/Object-Detection-AI.git |
 | **Date of Submission** | October 20, 2026 |
@@ -90,10 +90,10 @@ The selected techniques directly resolve the high dimensionality and partial obs
 
 | Class | Main Attributes | Main Methods | Relationship |
 |---|---|---|---|
-| **DetectionWorker** | camera_id, rtsp_url, model, hit_counts, confirmed_ids, frame_queue, status_dict, stop_event | run(), process_frame(), update_tracks(), confirm_objects(), cleanup() | Launched by DetectionService; pushes frames and counts to FastAPI via multiprocessing queues. |
-| **CameraService** | db: Session, registry: dict | create_camera(), get_camera(), list_cameras(), delete_camera(), get_camera_status() | Interfaces with Camera ORM; coordinates with DetectionService to verify activity before deletion. |
-| **DetectionService** | active_workers: dict, max_concurrent: int = 2, lock: Lock | start_detection(), stop_detection(), get_active_count(), finalize_run() | Enforces 2-stream GPU concurrency limit; persists completed run metrics to Run DB models. |
-| **ResourceMonitor** | interval, cpu_samples, gpu_mem_samples, gpu_util_samples, stop_event | start(), sample_gpu(), sample_system(), get_summary_stats(), stop() | Embedded in detection sessions to attach hardware profiling telemetry to each completed run log. |
+| **BaseCounter** | class_names | update(), reset(), counts (abstract property), total() | Abstract base class; `BayesianObjectCounter` inherits from it and overrides all abstract methods. |
+| **BayesianObjectCounter** | class_names, p_arrive, p_leave, lambda_present, lambda_noise, confirm_threshold, _belief, _counts, _in_object | update(), reset(), _predict_step(), _update_step(), _poisson_pmf() | Inherits `BaseCounter`; implements two-state HMM Bayesian filter as the second AI technique. |
+| **DetectionEnvironment** | source, seed, frame_count, fps, width, height | __iter__(), __next__(), release(), __enter__(), __exit__() | Wraps cv2.VideoCapture; delivers frames to SackDetectorAgent one at a time via iterator protocol. |
+| **SackDetectorAgent** | weights_path, conf, tracker, min_hits, device, _model, _hit_counts, _confirmed_ids, _hc_counts, _bayes | perceive(), reset(), hit_counter_counts (property), bayesian_counts (property) | Model-based reflex agent; owns both the YOLO model and a BayesianObjectCounter; called per frame by the detection workers. |
 
 ---
 
@@ -128,7 +128,7 @@ Deliberately excluded. Naming what you will not build is as important as naming 
 | Field | Detail |
 |---|---|
 | **Source name and URL** | Industrial Box & Sack Warehouse Logistics Dataset (YOLOv8-annotated) & Recorded RTSP Stream Testbed (data/recordings/) |
-| **Type** | Public dataset ☐ Web API ☑ Self-collected ☐ Generated / simulated ☐ |
+| **Type** | Public dataset ☐ Web API ☐ Self-collected ☑ Generated / simulated ☐ |
 | **Access requirements** | No key needed ☑ Free key required ☐ (Paid sources are not permitted) |
 | **Approximate size** | 3,581 annotated high-resolution training/validation images (~2.4 GB); 4 benchmark evaluation video streams (~850 MB total, 1080p @ 30 fps). |
 | **Licence / terms of use** | Academic Research and Educational Use |
