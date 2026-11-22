@@ -1,0 +1,25 @@
+# FastAPI and server
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.4.2
+pydantic-settings==2.0.3
+
+# Database
+sqlalchemy==2.0.23
+
+# Machine Learning and Vision
+# torch, torchvision, numpy, opencv-python, and ultralytics are all pre-installed
+# in the ultralytics/ultralytics base image. Do not re-pin them here — the base image
+# runs Python 3.12 and pinning old source-build-only versions will fail.
+
+# Utilities
+python-dotenv==1.0.0
+python-multipart==0.0.6
+
+# Optional: For resource monitoring
+psutil==5.9.6
+
+# Testing (optional, for development)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.1
