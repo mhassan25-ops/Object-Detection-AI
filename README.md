@@ -1,405 +1,169 @@
-# RTSP Multi-Camera Detection Dashboard
+# Sack and Box Detection and Counting System
 
-A local web application for registering CCTV cameras, running YOLOv8n + BoT-SORT object detection on live RTSP streams, and reviewing results in real time and historically.
-
-The system enforces a hard maximum of **2 concurrent GPU-accelerated detections** to stay within the VRAM budget of an NVIDIA RTX 3050 (~227 MB VRAM per detection instance). The entire stack runs via Docker Compose (Docker Desktop with WSL2 backend).
+An AI-powered warehouse object detection system that counts distinct sacks and boxes from video footage using YOLOv8 object detection, BoT-SORT multi-object tracking, and a Bayesian probabilistic layer. Includes a full-stack web interface for uploading videos and viewing live annotated results.
 
 ---
 
-## Architecture Overview
+## Group Members
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  Browser  →  http://localhost  (nginx on port 80)        │
-│                                                          │
-│  nginx proxies:                                          │
-│    /api/*  →  backend:8000  (REST API)                   │
-│    /ws/*   →  backend:8000  (WebSocket live feed)        │
-└──────────────────────────────────────────────────────────┘
-         │
-┌────────▼─────────────────────────────────────────────────┐
-│  FastAPI Backend  (port 8000)                            │
-│    - Camera CRUD                                         │
-│    - Detection worker process management                 │
-│    - WebSocket live frame streaming                      │
-│    - SQLite persistence (data.db)                        │
-│    - GPU-accelerated YOLOv8n + BoT-SORT inference        │
-└──────────────────────────────────────────────────────────┘
-```
+| Name | Roll Number | Built |
+|---|---|---|
+| Muhammad Hassan | 24K-3051 | AI core — detection workers, Bayesian HMM counter, OOP layer, experiments |
+| Muhammad Ali | 24K-3103 | Backend API — FastAPI server, REST endpoints, WebSocket, database |
+| Asad Chotani | 24K-3072 | Frontend — React web interface, video upload page, live viewer, all components |
 
 ---
 
-## Prerequisites
+## Features
 
-| Requirement | Details |
-|-------------|---------|
-| **OS** | Windows 10/11 with WSL2 enabled |
-| **Docker Desktop** | Version 4.x or newer (with WSL2 backend) |
-| **NVIDIA GPU** | RTX 3050 or better (1 GB+ VRAM) |
-| **NVIDIA Driver** | Windows driver ≥ 527.41 (enables GPU passthrough to WSL2) |
-| **Model weights** | `weights/best.pt` (YOLOv8n trained on box/sack dataset) |
+- Upload a video and watch the model detect and count objects frame by frame in real time
+- Live RTSP camera stream support for warehouse monitoring
+- Two independent counting methods: hit-counter (BoT-SORT tracking) and Bayesian HMM layer
+- Per-class confirmed counts: `box` and `sack`
+- Detection history with run records stored in SQLite
+- Dashboard with aggregate statistics across all runs
 
-### Verify GPU Passthrough (once, before first run)
-
-```bash
-docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
-```
-
-If `nvidia-smi` prints your GPU name and driver version, GPU passthrough is working. If it fails, see the [GPU Troubleshooting](#gpu-troubleshooting) section below.
+**Known limitations:**
+- CPU-only inference runs at 2–6 fps (GPU recommended for real-time use)
+- Bayesian layer may miss one object when two entries happen in rapid temporal succession
+- Model detects only `box` and `sack` classes; retraining required for other objects
 
 ---
 
-## Quick Start
+## Setup Instructions
 
-### 1. Clone and set up model weights
+### Requirements
+
+- Python 3.14 (must have `ultralytics`, `opencv-python`, `fastapi`, `uvicorn`, `sqlalchemy`)
+- Node.js 18+ and npm
+
+### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
-cd sack-detection-interface-main
-
-# Create the weights directory and copy your trained model
-mkdir -p weights
-cp /path/to/your/best.pt weights/best.pt
+git clone https://github.com/mhassan25-ops/Object-Detection-AI.git
+cd Object-Detection-AI
 ```
 
-### 2. Start with the startup script (recommended)
-
-The `startup.sh` script verifies GPU passthrough, creates required files, builds images, and starts the stack:
+### 2. Install backend dependencies
 
 ```bash
-chmod +x startup.sh
-./startup.sh
+cd backend
+pip install -r requirements.txt
 ```
 
-To skip the GPU verification step:
+### 3. Install frontend dependencies
 
 ```bash
-./startup.sh --skip-gpu-check
+cd frontend
+npm install
 ```
 
-### 3. Or start manually
+### 4. Set the model weights path
+
+The trained model weights (`best.pt`) are not committed to the repository due to file size (~21 MB). Set the path in `backend/config.py`:
+
+```python
+WEIGHTS_PATH = r"path\to\your\best.pt"
+```
+
+Or set the environment variable before starting:
 
 ```bash
-# Create data.db file (needed for the volume mount)
-touch data.db
-
-# Build images
-docker compose build
-
-# Start services in the background
-docker compose up -d
+$env:WEIGHTS_PATH = "C:\path\to\best.pt"   # PowerShell
 ```
 
 ---
 
-## Access the Application
+## Running the Project
 
-| Service | URL |
-|---------|-----|
-| **Frontend** (React app) | http://localhost |
-| **Backend API** | http://localhost:8000 |
-| **Swagger / OpenAPI docs** | http://localhost:8000/docs |
+### Start the backend
+
+```bash
+cd backend
+C:\Python314\python.exe -m uvicorn main:app --reload --port 8000
+```
+
+### Start the frontend (separate terminal)
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open **http://localhost:5173** in your browser.
 
 ---
 
-## Stopping and Managing the Stack
+## Reproducing the Experiments
+
+Runs the three detection configurations on `video.mp4` and generates the results CSV and all three charts:
 
 ```bash
-# Stop all services (containers removed, volumes/images kept)
-docker compose down
-
-# View logs for all services
-docker compose logs -f
-
-# View logs for a specific service
-docker compose logs -f backend
-docker compose logs -f frontend
-
-# Rebuild after code changes
-docker compose build
-docker compose up -d
-
-# Full teardown (removes volumes too — deletes data.db!)
-docker compose down -v
+python final_experiments.py
 ```
+
+**Output:**
+- `outputs/results/experiment_results.csv` — per-configuration counts, errors, fps
+- `outputs/figures/fig1_counts_vs_gt.png` — predicted counts vs ground truth
+- `outputs/figures/fig2_abs_error.png` — absolute error per method
+- `outputs/figures/fig3_noise_vs_fps.png` — noise rejection vs processing speed
+
+Seed is fixed at `random.seed(42)` — results are fully reproducible.
 
 ---
 
 ## Project Structure
 
 ```
-.
-├── backend/                 # FastAPI backend
-│   ├── api/                 # Route handlers (cameras, detections, health, stats, ws)
-│   ├── services/            # Business logic layer
-│   ├── main.py              # App entry point, registry setup
-│   ├── worker.py            # Detection worker process (YOLOv8n + BoT-SORT)
-│   ├── models.py            # SQLAlchemy ORM (Camera, Run)
-│   ├── schemas.py           # Pydantic request/response models
-│   ├── config.py            # Configuration (weights path, min_hits, etc.)
-│   ├── database.py          # SQLite session factory
-│   ├── requirements.txt     # Python dependencies
-│   └── Dockerfile
-├── frontend/                # React frontend (Vite + React Router)
+├── README.md
+├── requirements.txt          ← backend Python dependencies
+├── .gitignore
+├── final_experiments.py      ← reproduces all experiment results
+├── count_objects.py          ← standalone CLI detection tool
+│
+├── src/                      ← AI core (Member 1)
+│   ├── environment.py        ← DetectionEnvironment class (PEAS wrapper)
+│   ├── bayesian_counter.py   ← BayesianObjectCounter class (two-state HMM)
+│   ├── agent.py              ← SackDetectorAgent class (model-based reflex agent)
+│   └── main.py               ← CLI entry point
+│
+├── backend/                  ← FastAPI server (Member 2)
+│   ├── main.py               ← app entry point, multiprocessing Manager
+│   ├── worker.py             ← RTSP stream detection worker process
+│   ├── video_worker.py       ← video file detection worker process
+│   ├── config.py             ← all configuration constants
+│   ├── models.py             ← SQLAlchemy ORM (Camera, Run tables)
+│   ├── schemas.py            ← Pydantic request/response schemas
+│   ├── database.py           ← SQLite session factory
+│   ├── requirements.txt
+│   └── api/
+│       ├── cameras.py        ← GET/POST/DELETE /api/cameras
+│       ├── detections.py     ← start/stop detection, run history
+│       ├── video.py          ← video upload, job status, WebSocket stream
+│       ├── websocket.py      ← live RTSP frame streaming
+│       ├── health.py         ← /api/health
+│       └── stats.py          ← /api/stats/summary
+│
+├── frontend/                 ← React web interface (Member 3)
 │   ├── src/
-│   │   ├── components/      # Page components (Dashboard, Cameras, Live, Results, History, Navbar)
-│   │   ├── services/        # API and WebSocket clients
-│   │   └── hooks/           # Custom React hooks
-│   ├── nginx.conf           # nginx config (serves SPA, proxies /api and /ws to backend)
-│   └── Dockerfile           # Multi-stage: Node build → nginx serve
-├── weights/                 # Model weights (not committed to git)
-│   └── best.pt              # YOLOv8n trained model
-├── data.db                  # SQLite database (persisted via volume mount)
-├── docker-compose.yml       # Service orchestration with GPU reservation
-├── startup.sh               # GPU verification + startup helper script
-└── README.md                # This file
+│   │   ├── components/       ← VideoUpload, Live, Cameras, Dashboard, History, Results, Navbar
+│   │   ├── hooks/            ← useWebSocket, useHealth
+│   │   ├── services/         ← api.js (Axios), websocket.js
+│   │   └── styles/           ← App.css (all global styles)
+│   └── vite.config.js        ← dev proxy for /api and /ws
+│
+├── docs/
+│   └── report.md             ← project report
+│
+└── outputs/
+    ├── figures/              ← fig1, fig2, fig3 (generated by final_experiments.py)
+    └── results/              ← experiment_results.csv
 ```
 
 ---
 
-## Configuration
-
-Backend configuration is managed via environment variables (with defaults in `backend/config.py`).
-
-Add an optional `.env` file in the project root to override defaults:
-
-```env
-# Model inference
-WEIGHTS_PATH=weights/best.pt
-INFERENCE_CONF=0.4
-MIN_HITS_BOX=15
-MIN_HITS_SACK=15
-
-# RTSP retry behavior
-RTSP_MAX_RETRIES=5
-RTSP_BACKOFF_BASE=2
-
-# GPU device index
-GPU_DEVICE=0
-```
-
-Pass `.env` to docker compose by adding `env_file: .env` under the `backend` service in `docker-compose.yml`, or set them inline under `environment:`.
-
----
-
-## Data Persistence
-
-The SQLite database (`data.db`) is mounted as a volume into the backend container:
-
-```yaml
-volumes:
-  - ./data.db:/app/data.db
-```
-
-This means **camera registrations and detection run history persist across container restarts and rebuilds**. To reset all data:
-
-```bash
-docker compose down
-rm data.db
-touch data.db
-docker compose up -d
-```
-
-Similarly, model weights are mounted at `./weights:/app/weights` so you can swap the model without rebuilding the image.
-
----
-
-## Troubleshooting
-
-### GPU passthrough issues
-
-**Symptom**: `docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi` fails or backend health reports `"gpu": "unreachable"`.
-
-**Checklist**:
-
-1. **Update NVIDIA driver** (Windows host): https://www.nvidia.com/Download/index.aspx — you need driver version ≥ 527.41 for WSL2 CUDA passthrough.
-2. **Enable WSL2 backend**: Docker Desktop → Settings → General → "Use the WSL 2 based engine" must be checked.
-3. **Enable WSL integration**: Docker Desktop → Settings → Resources → WSL Integration → enable your default distro.
-4. **Restart Docker Desktop** after any driver or settings change (full quit + reopen, not just restart daemon).
-5. **Verify NVIDIA Container Toolkit** is included — it ships with Docker Desktop on Windows, but can be missing in some configurations:
-   ```bash
-   docker info | findstr "Runtimes"
-   # Should show: Runtimes: nvidia runc
-   ```
-
-**Check GPU availability inside the container:**
-
-```bash
-docker compose exec backend python -c "import torch; print('CUDA available:', torch.cuda.is_available()); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
-```
-
-**If GPU remains unavailable**, detection falls back to CPU automatically, which is significantly slower (~2–5 fps → ~0.5–1 fps). The navbar will show "Service unavailable" because the health check GPU sub-check fails. You can still use the application — just expect slower inference.
-
----
-
-### RTSP connection failures and retry logic
-
-**Symptom**: Detection starts but immediately errors, or camera shows as "errored" in the list.
-
-**Diagnose connectivity**:
-
-```bash
-# Ping the camera from inside the backend container
-docker compose exec backend ping -c 3 192.168.1.100
-
-# Test RTSP stream directly
-docker compose exec backend ffprobe rtsp://192.168.1.100:554/stream
-```
-
-**Common causes and fixes**:
-
-| Problem | Symptom | Fix |
-|---------|---------|-----|
-| Wrong IP/port | Immediate connection refused | Verify URL with `ffplay rtsp://...` on host |
-| Camera requires auth | 401 Unauthorized in logs | Include credentials: `rtsp://user:pass@host:port/path` |
-| Camera on different VLAN | Ping fails from container | Ensure Docker host networking or correct bridge |
-| Camera stream inactive | Connection timeout | Check camera power and network cable |
-| Firewall blocking RTSP | Timeout after TCP connect | Open port 554 (RTSP) in Windows Firewall |
-
-**Retry logic**: The detection worker automatically retries RTSP connections up to 5 times with exponential backoff (2s, 4s, 8s, 16s, 32s) before marking the detection as errored. Transient network drops during an active stream are also retried. You can tune this via environment variables:
-
-```env
-RTSP_MAX_RETRIES=5    # number of retry attempts
-RTSP_BACKOFF_BASE=2   # base for exponential backoff (seconds)
-```
-
----
-
-### Port conflicts
-
-**Symptom**: `docker compose up` fails with "port is already allocated" or "address already in use".
-
-```bash
-# Find what's using port 80 or 8000
-netstat -ano | findstr ":80 "
-netstat -ano | findstr ":8000"
-
-# Kill the process by PID (replace 1234 with actual PID)
-taskkill /F /PID 1234
-```
-
-**Or remap ports** in `docker-compose.yml`:
-
-```yaml
-services:
-  frontend:
-    ports:
-      - "8080:80"    # serve frontend on http://localhost:8080
-
-  backend:
-    ports:
-      - "8001:8000"  # serve backend API on http://localhost:8001
-```
-
-If you remap the backend port, also update `frontend/nginx.conf` proxy_pass targets to match, and rebuild both images.
-
----
-
-### Common startup errors
-
-**`data.db` volume mount fails** — backend exits with "no such file or directory":
-
-The `docker-compose.yml` mounts `./data.db` as a file volume. Docker requires the file to exist before mounting.
-
-```bash
-# Create it first (only needed once)
-New-Item -ItemType File -Name "data.db" -Force   # PowerShell
-# or on Windows CMD:
-type nul > data.db
-```
-
-**Backend container exits immediately with `ImportError`**:
-
-The ultralytics base image may not have all requirements. Check logs:
-
-```bash
-docker compose logs backend
-```
-
-If a package is missing, add it to `backend/requirements.txt` and rebuild:
-
-```bash
-docker compose build backend
-docker compose up -d backend
-```
-
-**Frontend shows blank page after `docker compose up`**:
-
-The nginx config requires the backend API to be reachable. If the backend is still starting, nginx's proxy may return 502 for the first few requests. Wait 10–20 seconds and reload.
-
-Check that both containers are running:
-
-```bash
-docker compose ps
-# Both 'backend' and 'frontend' should show status 'Up'
-```
-
-**WebSocket connection refused or immediately closes**:
-
-nginx proxies `/ws/*` to the backend with upgraded headers. If you see WebSocket errors in the browser console, verify:
-
-1. `nginx.conf` has `proxy_http_version 1.1` and `Upgrade`/`Connection` headers for `/ws` location.
-2. The backend is healthy: `curl http://localhost:8000/api/health`
-3. A detection is actually running on that camera (WebSocket closes with code 4000 if not).
-
-**`Max 2 concurrent detections reached` (409 error)**:
-
-This is expected behavior, not a bug. Stop one of the running detections from its live page before starting a new one.
-
-**`Cannot delete camera: detection is currently running` (409 error)**:
-
-Stop the active detection on that camera first, then delete it.
-
----
-
-### Database issues
-
-**Reset the database** (deletes all cameras and run history):
-
-```bash
-docker compose down
-Remove-Item data.db        # PowerShell
-New-Item -ItemType File -Name "data.db" -Force
-docker compose up -d
-```
-
-**SQLite locked errors** (rare, usually from multiple processes):
-
-The backend must run with `--workers 1` (single uvicorn worker process). Check that `docker-compose.yml` does not set `--workers > 1` in the CMD.
-
-**Inspect the database directly** (from host):
-
-```bash
-# Install sqlite3 CLI (Windows: winget install SQLite.SQLite)
-sqlite3 data.db ".tables"
-sqlite3 data.db "SELECT * FROM cameras;"
-sqlite3 data.db "SELECT id, camera_id, status, total_confirmed_count FROM runs ORDER BY id DESC LIMIT 10;"
-```
-
----
-
-## Running Tests
-
-### Backend unit and property-based tests
-
-```bash
-cd backend
-pip install -r requirements.txt
-python -m pytest -v
-```
-
-### Frontend unit tests
-
-```bash
-cd frontend
-npm install
-npm run test:run
-```
-
-For the full testing guide including the 20 correctness properties coverage table, see [TESTING.md](./TESTING.md).
-
----
-
-## License
-
-[Your License Here]
+## Data Source
+
+- **Training data:** Custom-annotated warehouse video footage (sacks and boxes)
+- **Test video:** `video.mp4` — 70 seconds, 848×480, 25 fps, manually counted ground truth: 3 sacks + 6 boxes = 9 total
+- **Model:** YOLOv8n fine-tuned on the custom dataset — weights at `runs/detect/sack_box_detect/v1/weights/best.pt`
